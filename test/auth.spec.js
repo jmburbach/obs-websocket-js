@@ -1,6 +1,6 @@
 const test = require('ava');
 const env = require('./setup/environment');
-const OBSWebSocket = require('../lib/index');
+const OBSWebSocket = require('..');
 const SHA256 = require('sha.js/sha256');
 
 let unauthServer;
@@ -50,14 +50,29 @@ test('connects when auth is required', async t => {
   }));
 });
 
-// FIXME: Not sure I like this behavior, it returns the raw socket response when you provide an incorrect url.
 test('fails to connect when an incorrect url is provided', async t => {
   const obs = new OBSWebSocket();
   const resp = await t.throws(obs.connect({
     address: 'localhost:4442'
   }));
 
-  t.deepEqual(resp.message, 'connect ECONNREFUSED 127.0.0.1:4442');
+  t.deepEqual(resp.status, 'error');
+  t.deepEqual(resp.code, 'CONNECTION_ERROR');
+  t.deepEqual(resp.error, 'Connection error.');
+});
+
+test.cb('rejects a promise when a connection fails', t => {
+  const obs = new OBSWebSocket();
+  obs.connect({
+    address: 'localhost:4442'
+  }).then(() => {
+    t.fail('Expected a promise rejection when a connection cannot be established.');
+  }).catch(err => {
+    t.deepEqual(err.status, 'error');
+    t.deepEqual(err.code, 'CONNECTION_ERROR');
+    t.deepEqual(err.error, 'Connection error.');
+    t.end();
+  });
 });
 
 test('fails to connect when the wrong password is provided', async t => {
@@ -184,12 +199,12 @@ test('closes an existing connection when `connect` is called again', async t => 
   let open = false;
 
   // Verify that the previous connection was closed.
-  obs.onConnectionOpened(() => {
+  obs.on('ConnectionOpened', () => {
     t.false(open);
     open = true;
   });
 
-  obs.onConnectionClosed(() => {
+  obs.on('ConnectionClosed', () => {
     open = false;
   });
 

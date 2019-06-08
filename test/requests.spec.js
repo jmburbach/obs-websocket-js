@@ -1,6 +1,6 @@
 const test = require('ava');
 const env = require('./setup/environment');
-const OBSWebSocket = require('../lib/index');
+const OBSWebSocket = require('..');
 
 let unauthServer;
 const obs = new OBSWebSocket();
@@ -26,44 +26,32 @@ test('rejects when an invalid request is sent', async t => {
   t.deepEqual(resp.error, 'invalid request type');
 });
 
-test('allows using lowercase request methods', async t => {
-  obs.registerRequest('ValidMethodName');
-  const resp = await obs.validMethodName();
-  t.deepEqual(resp.status, 'ok');
-});
-
-test('allows using uppercase request methods', async t => {
-  obs.registerRequest('ValidMethodName');
-  const resp = await obs.ValidMethodName(); // eslint-disable-line new-cap
-  t.deepEqual(resp.status, 'ok');
-});
-
 test('permits null args', async t => {
   await t.notThrows(obs.send('ValidMethodName', null));
 });
 
-// There's some funky behavior if you try to make use of both the callback and the promise. Should be avoided.
-test.cb('allows the use of a callback instead of a promise.resolve', t => {
-  obs.send('ValidMethodName', {}, (err, data) => {
+test.cb('sendCallback -- success case', t => {
+  obs.sendCallback('ValidMethodName', {}, (err, data) => {
     t.falsy(err);
     t.deepEqual(data.status, 'ok');
     t.end();
   });
 });
 
-// There's some funky behavior if you try to make use of both the callback and the promise. Should be avoided.
-test.cb('allows the use of a callback instead of a promise.reject', t => {
-  obs.send('InvalidMethodName', {}, (err, data) => {
-    t.falsy(data);
-    t.deepEqual(err.status, 'error');
+test.cb('sendCallback -- omitted args', t => {
+  obs.sendCallback('ValidMethodName', (err, data) => {
+    t.falsy(err);
+    t.deepEqual(data.status, 'ok');
     t.end();
   });
 });
 
-test('assigns default methods based on API.js', async t => {
-  const resp = await obs.getAuthRequired();
-  t.deepEqual(resp.status, 'ok');
-  t.false(resp.authRequired);
+test.cb('sendCallback -- error case', t => {
+  obs.sendCallback('InvalidMethodName', {}, (err, data) => {
+    t.falsy(data);
+    t.deepEqual(err.status, 'error');
+    t.end();
+  });
 });
 
 test('rejects when no open connection exists', async t => {
